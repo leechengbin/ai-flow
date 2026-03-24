@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m pytest tests/test_knowledge/test_document_parser.py -v)",
+      "Bash(cmd /c \"cd /d D:\\\\gitea\\\\gitea-data\\\\2026技术委员会立项\\\\02 代码\\\\ai-flow && python -m pytest tests/test_knowledge/test_search.py -v\")",
+      "Bash(poetry run:*)"
+    ]
+  }
+}

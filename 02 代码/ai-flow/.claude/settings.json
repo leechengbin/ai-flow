@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pytest -v)",
+      "Bash(python -m ai_flow.cli route \"请分析项目进度\")",
+      "Bash(ls -la d:/CODE/MyRepositories/ai-flow/.env*)",
+      "Bash(python -c \":*)"
+    ]
+  }
+}

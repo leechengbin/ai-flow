@@ -1,0 +1,30 @@
+server:
+  port: 8087
+
+spring:
+  application:
+    name: bidding-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/aiflow
+    username: aiflow
+    password: aiflow_secret
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: bidding-documents
+
+logging:
+  level:
+    com.aiplatform.bidding: DEBUG
