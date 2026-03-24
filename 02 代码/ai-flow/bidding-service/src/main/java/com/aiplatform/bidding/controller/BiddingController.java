@@ -5,11 +5,14 @@ import com.aiplatform.bidding.dto.request.CheckOptions;
 import com.aiplatform.bidding.dto.response.ApiResponse;
 import com.aiplatform.bidding.dto.response.BiddingCheckReportDto;
 import com.aiplatform.bidding.service.BiddingCheckService;
+import com.aiplatform.bidding.service.CheckRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/bidding")
@@ -17,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Slf4j
 public class BiddingController {
     private final BiddingCheckService biddingCheckService;
+    private final CheckRecordService checkRecordService;
 
     @PostMapping("/check")
     public ResponseEntity<ApiResponse<BiddingCheckReportDto>> checkBidding(
@@ -34,5 +38,13 @@ public class BiddingController {
 
         BiddingCheckReportDto report = biddingCheckService.checkBidding(request);
         return ResponseEntity.ok(ApiResponse.success(report));
+    }
+
+    @GetMapping("/report/{reportId}")
+    public ResponseEntity<ApiResponse<BiddingCheckReportDto>> getReport(@PathVariable String reportId) {
+        Optional<BiddingCheckReportDto> report = checkRecordService.getReport(reportId);
+        return report
+            .map(r -> ResponseEntity.ok(ApiResponse.success(r)))
+            .orElse(ResponseEntity.status(404).body(ApiResponse.error(404, "Report not found: " + reportId)));
     }
 }
