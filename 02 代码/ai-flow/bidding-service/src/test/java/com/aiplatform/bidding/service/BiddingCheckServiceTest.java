@@ -1,304 +1,210 @@
 package com.aiplatform.bidding.service;
 
-import com.aiplatform.bidding.domain.entity.BiddingDocument;
-import com.aiplatform.bidding.domain.entity.Clause;
-import com.aiplatform.bidding.domain.enums.ClauseType;
 import com.aiplatform.bidding.dto.request.BiddingCheckRequest;
-import com.aiplatform.bidding.dto.response.BiddingCheckResponse;
-import com.aiplatform.bidding.repository.BiddingDocumentRepository;
-import com.aiplatform.bidding.repository.ClauseRepository;
+import com.aiplatform.bidding.dto.request.CheckOptions;
+import com.aiplatform.bidding.dto.response.*;
+import com.aiplatform.bidding.domain.enums.ClauseType;
+import com.aiplatform.bidding.dto.response.MatchResultDto.MatchType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@DisplayName("BiddingCheckService Tests")
 class BiddingCheckServiceTest {
 
     @Mock
-    private BiddingDocumentRepository documentRepository;
+    private DocumentParserService documentParserService;
 
     @Mock
-    private ClauseRepository clauseRepository;
+    private ClauseExtractorService clauseExtractorService;
 
-    @InjectMocks
-    private BiddingCheckService biddingCheckService;
+    @Mock
+    private ClauseMatcherService clauseMatcherService;
 
-    private BiddingDocument sampleDocument;
-    private BiddingCheckRequest sampleRequest;
+    @Mock
+    private FormatCheckerService formatCheckerService;
+
+    @Mock
+    private ReportGeneratorService reportGeneratorService;
+
+    @Mock
+    private MultipartFile tenderFile;
+
+    @Mock
+    private MultipartFile biddingFile;
+
+    private BiddingCheckService service;
 
     @BeforeEach
     void setUp() {
-        sampleDocument = BiddingDocument.builder()
-            .id("DOC-001")
-            .title("Test Bidding Document")
-            .uploaderId("user-123")
-            .status(BiddingDocument.DocumentStatus.DRAFT)
-            .build();
-
-        sampleRequest = new BiddingCheckRequest();
-        sampleRequest.setDocumentId("DOC-001");
+        service = new BiddingCheckService(
+            documentParserService, clauseExtractorService,
+            clauseMatcherService, formatCheckerService, reportGeneratorService
+        );
     }
 
-    @Nested
-    @DisplayName("checkBidding - Basic Functionality")
-    class CheckBiddingBasic {
+    @Test
+    @DisplayName("Should orchestrate bidding check flow")
+    void checkBidding_shouldOrchestrateFlow() throws Exception {
+        // Setup mocks
+        ParsedDocumentDto tenderDoc = new ParsedDocumentDto(
+            "t1", "t.pdf", "PDF", 1, "text",
+            List.of(), List.of(), List.of()
+        );
+        ParsedDocumentDto biddingDoc = new ParsedDocumentDto(
+            "b1", "b.pdf", "PDF", 1, "text",
+            List.of(), List.of(), List.of()
+        );
 
-        @Test
-        @DisplayName("checkBidding throws when document not found")
-        void checkBidding_documentNotFound_throws() {
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.empty());
+        when(tenderFile.getOriginalFilename()).thenReturn("tender.pdf");
+        when(tenderFile.getBytes()).thenReturn(new byte[]{1});
+        when(biddingFile.getOriginalFilename()).thenReturn("bidding.pdf");
+        when(biddingFile.getBytes()).thenReturn(new byte[]{1});
 
-            assertThatThrownBy(() -> biddingCheckService.checkBidding(sampleRequest))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Document not found: DOC-001");
-        }
+        when(documentParserService.parse(any(byte[].class), eq("tender.pdf")))
+            .thenReturn(tenderDoc);
+        when(documentParserService.parse(any(byte[].class), eq("bidding.pdf")))
+            .thenReturn(biddingDoc);
 
-        @Test
-        @DisplayName("checkBidding returns 100% score when all tender clauses match")
-        void checkBidding_allClausesMatch_fullScore() {
-            sampleRequest.setTenderRequirements("第一条：这是要求1\n第二条：这是要求2");
+        when(clauseExtractorService.extractClauses(any())).thenReturn(List.of());
+        when(clauseMatcherService.matchClauses(any(), any())).thenReturn(List.of());
+        when(formatCheckerService.checkFormat(any())).thenReturn(
+            new FormatCheckDto(
+                new CompletenessCheck(100, List.of()),
+                new SignatureCheck(100, List.of()),
+                new DateCheck(100, List.of()),
+                100
+            )
+        );
+        when(reportGeneratorService.generateReport(any(), any(), any()))
+            .thenReturn(any(BiddingCheckReportDto.class));
 
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(List.of(
-                Clause.builder().id("C1").documentId("DOC-001").clauseNumber("1").content("第一条：这是要求1").build(),
-                Clause.builder().id("C2").documentId("DOC-001").clauseNumber("2").content("第二条：这是要求2").build()
-            ));
+        BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, new CheckOptions(true, true, true));
+        BiddingCheckReportDto result = service.checkBidding(request);
 
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getScore()).isEqualTo(100.0);
-            assertThat(response.getMatchedClauses()).isEqualTo(2);
-            assertThat(response.getUnmatched()).isZero();
-            assertThat(response.getTotalClauses()).isEqualTo(2);
-            assertThat(response.isEliminationRisk()).isFalse();
-        }
-
-        @Test
-        @DisplayName("checkBidding returns lower score when clauses are missing")
-        void checkBidding_missingClauses_lowerScore() {
-            sampleRequest.setTenderRequirements("第一条：这是要求1\n第二条：这是要求2\n第三条：这是要求3");
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(List.of(
-                Clause.builder().id("C1").documentId("DOC-001").clauseNumber("1").content("第一条：这是要求1").build()
-            ));
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getScore()).isCloseTo(33.33, within(0.01));
-            assertThat(response.getMatchedClauses()).isEqualTo(1);
-            assertThat(response.getUnmatched()).isEqualTo(2);
-            assertThat(response.getTotalClauses()).isEqualTo(3);
-            assertThat(response.getIssues()).hasSize(2);
-        }
+        assertNotNull(result);
+        verify(documentParserService, times(2)).parse(any(byte[].class), any());
+        verify(clauseExtractorService, times(2)).extractClauses(any());
+        verify(clauseMatcherService).matchClauses(any(), any());
+        verify(formatCheckerService).checkFormat(any());
+        verify(reportGeneratorService).generateReport(any(), any(), any());
     }
 
-    @Nested
-    @DisplayName("checkBidding - Edge Cases")
-    class CheckBiddingEdgeCases {
+    @Test
+    @DisplayName("Should use default check options when null")
+    void checkBidding_shouldUseDefaultCheckOptions() throws Exception {
+        ParsedDocumentDto tenderDoc = new ParsedDocumentDto(
+            "t1", "t.pdf", "PDF", 1, "text",
+            List.of(), List.of(), List.of()
+        );
+        ParsedDocumentDto biddingDoc = new ParsedDocumentDto(
+            "b1", "b.pdf", "PDF", 1, "text",
+            List.of(), List.of(), List.of()
+        );
 
-        @Test
-        @DisplayName("checkBidding returns 100% when tender requirements is empty")
-        void checkBidding_emptyTenderRequirements_fullScore() {
-            sampleRequest.setTenderRequirements("");
+        when(tenderFile.getOriginalFilename()).thenReturn("tender.pdf");
+        when(tenderFile.getBytes()).thenReturn(new byte[]{1});
+        when(biddingFile.getOriginalFilename()).thenReturn("bidding.pdf");
+        when(biddingFile.getBytes()).thenReturn(new byte[]{1});
 
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
+        when(documentParserService.parse(any(byte[].class), any()))
+            .thenReturn(tenderDoc)
+            .thenReturn(biddingDoc);
+        when(clauseExtractorService.extractClauses(any())).thenReturn(List.of());
+        when(clauseMatcherService.matchClauses(any(), any())).thenReturn(List.of());
+        when(formatCheckerService.checkFormat(any())).thenReturn(
+            new FormatCheckDto(
+                new CompletenessCheck(100, List.of()),
+                new SignatureCheck(100, List.of()),
+                new DateCheck(100, List.of()),
+                100
+            )
+        );
+        when(reportGeneratorService.generateReport(any(), any(), any()))
+            .thenReturn(any(BiddingCheckReportDto.class));
 
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
+        BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, null);
+        BiddingCheckReportDto result = service.checkBidding(request);
 
-            assertThat(response.getScore()).isEqualTo(100.0);
-            assertThat(response.getTotalClauses()).isZero();
-        }
-
-        @Test
-        @DisplayName("checkBidding returns 100% when tender requirements is null")
-        void checkBidding_nullTenderRequirements_fullScore() {
-            sampleRequest.setTenderRequirements(null);
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getScore()).isEqualTo(100.0);
-            assertThat(response.getTotalClauses()).isZero();
-        }
-
-        @Test
-        @DisplayName("checkBidding returns 100% when tender requirements is blank")
-        void checkBidding_blankTenderRequirements_fullScore() {
-            sampleRequest.setTenderRequirements("   \n\t  ");
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getScore()).isEqualTo(100.0);
-        }
-
-        @Test
-        @DisplayName("checkBidding returns empty issues when no bidding clauses exist")
-        void checkBidding_noBiddingClauses_createsIssues() {
-            sampleRequest.setTenderRequirements("第一条：这是要求1\n第二条：这是要求2");
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getScore()).isZero();
-            assertThat(response.getIssues()).hasSize(2);
-            assertThat(response.getUnmatched()).isEqualTo(2);
-        }
+        assertNotNull(result);
     }
 
-    @Nested
-    @DisplayName("checkBidding - Starred Clauses (Critical Issues)")
-    class CheckBiddingStarredClauses {
+    @Test
+    @DisplayName("Should propagate parsing exceptions")
+    void checkBidding_shouldPropagateParsingExceptions() throws Exception {
+        when(tenderFile.getOriginalFilename()).thenReturn("tender.pdf");
+        when(tenderFile.getBytes()).thenThrow(new RuntimeException("File read error"));
 
-        @Test
-        @DisplayName("Starred clause missing sets elimination risk to true")
-        void checkBidding_starredClauseMissing_eliminationRisk() {
-            sampleRequest.setTenderRequirements("★这是关键条款\n普通条款");
+        BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, new CheckOptions(true, true, true));
 
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(List.of(
-                Clause.builder()
-                    .id("C2")
-                    .documentId("DOC-001")
-                    .clauseNumber("2")
-                    .content("普通条款")
-                    .isStarred(false)
-                    .build()
-            ));
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.isEliminationRisk()).isTrue();
-            assertThat(response.getRiskReasons()).isNotEmpty();
-        }
-
-        @Test
-        @DisplayName("CRITICAL severity clause sets elimination risk")
-        void checkBidding_criticalSeverity_eliminationRisk() {
-            sampleRequest.setTenderRequirements("★关键要求1\n★关键要求2");
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.isEliminationRisk()).isTrue();
-            assertThat(response.getIssues()).allMatch(issue ->
-                "CRITICAL".equals(issue.getSeverity()) || issue.isEliminationRisk()
-            );
-        }
+        assertThrows(RuntimeException.class, () -> service.checkBidding(request));
     }
 
-    @Nested
-    @DisplayName("checkBidding - Clause Number Matching")
-    class CheckBiddingClauseMatching {
+    @Test
+    @DisplayName("Should process clauses through full pipeline")
+    void checkBidding_shouldProcessClausesThroughPipeline() throws Exception {
+        ClauseDto tenderClause = new ClauseDto("1", "条款", "内容", false,
+            ClauseType.OTHER, 1, 1, "第1条 条款");
+        ClauseDto biddingClause = new ClauseDto("1", "条款", "内容", false,
+            ClauseType.OTHER, 1, 1, "第1条 条款");
 
-        @Test
-        @DisplayName("Clauses are matched by clause number, not by content")
-        void checkBidding_matchByClauseNumber() {
-            sampleRequest.setTenderRequirements("1. 第一条要求\n2. 第二条要求");
+        ParsedDocumentDto tenderDoc = new ParsedDocumentDto(
+            "t1", "t.pdf", "PDF", 1, "第1条 条款",
+            List.of(), List.of(), List.of()
+        );
+        ParsedDocumentDto biddingDoc = new ParsedDocumentDto(
+            "b1", "b.pdf", "PDF", 1, "第1条 条款",
+            List.of(), List.of(), List.of()
+        );
 
-            // Bidding document has same clause numbers but different content
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(List.of(
-                Clause.builder()
-                    .id("C1")
-                    .documentId("DOC-001")
-                    .clauseNumber("1")
-                    .content("1. 第一条要求（实际内容）")  // Same number, different content
-                    .isStarred(false)
-                    .build(),
-                Clause.builder()
-                    .id("C2")
-                    .documentId("DOC-001")
-                    .clauseNumber("2")
-                    .content("2. 第二条要求（实际内容）")
-                    .isStarred(false)
-                    .build()
-            ));
+        MatchResultDto matchResult = new MatchResultDto(
+            tenderClause, biddingClause, MatchType.EXACT, 1.0, List.of()
+        );
 
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
+        when(tenderFile.getOriginalFilename()).thenReturn("tender.pdf");
+        when(tenderFile.getBytes()).thenReturn(new byte[]{1});
+        when(biddingFile.getOriginalFilename()).thenReturn("bidding.pdf");
+        when(biddingFile.getBytes()).thenReturn(new byte[]{1});
 
-            // Matched because clause numbers match
-            assertThat(response.getMatchedClauses()).isEqualTo(2);
-            assertThat(response.getScore()).isEqualTo(100.0);
-        }
-    }
+        when(documentParserService.parse(any(byte[].class), eq("tender.pdf")))
+            .thenReturn(tenderDoc);
+        when(documentParserService.parse(any(byte[].class), eq("bidding.pdf")))
+            .thenReturn(biddingDoc);
 
-    @Nested
-    @DisplayName("checkBidding - Response Fields")
-    class CheckBiddingResponseFields {
+        when(clauseExtractorService.extractClauses("第1条 条款"))
+            .thenReturn(List.of(tenderClause))
+            .thenReturn(List.of(biddingClause));
 
-        @Test
-        @DisplayName("Response contains correct document ID")
-        void checkBidding_responseHasDocumentId() {
-            sampleRequest.setTenderRequirements("第一条要求");
+        when(clauseMatcherService.matchClauses(any(), any()))
+            .thenReturn(List.of(matchResult));
 
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
+        when(formatCheckerService.checkFormat(any())).thenReturn(
+            new FormatCheckDto(
+                new CompletenessCheck(100, List.of()),
+                new SignatureCheck(100, List.of()),
+                new DateCheck(100, List.of()),
+                100
+            )
+        );
 
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
+        when(reportGeneratorService.generateReport(any(), any(), any()))
+            .thenReturn(any(BiddingCheckReportDto.class));
 
-            assertThat(response.getDocumentId()).isEqualTo("DOC-001");
-            assertThat(response.getCheckId()).startsWith("CHECK-");
-        }
+        BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, new CheckOptions(true, true, true));
+        BiddingCheckReportDto result = service.checkBidding(request);
 
-        @Test
-        @DisplayName("Response contains timestamp")
-        void checkBidding_responseHasTimestamp() {
-            sampleRequest.setTenderRequirements("第一条要求");
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getCheckedAt()).isNotNull();
-            assertThat(response.getCheckedAt()).isNotEmpty();
-        }
-
-        @Test
-        @DisplayName("Issue DTOs have correct structure")
-        void checkBidding_issueDtoStructure() {
-            sampleRequest.setTenderRequirements("★关键条款");
-
-            when(documentRepository.findById("DOC-001")).thenReturn(Optional.of(sampleDocument));
-            when(clauseRepository.findByDocumentId("DOC-001")).thenReturn(Collections.emptyList());
-
-            BiddingCheckResponse response = biddingCheckService.checkBidding(sampleRequest);
-
-            assertThat(response.getIssues()).hasSize(1);
-            BiddingCheckResponse.IssueDto issue = response.getIssues().get(0);
-            assertThat(issue.getIssueId()).startsWith("ISSUE-");
-            assertThat(issue.getClauseNumber()).isEqualTo("1");
-            assertThat(issue.getIssueType()).isEqualTo("MISSING");
-            assertThat(issue.getOriginalText()).isEqualTo("(未提供)");
-            assertThat(issue.getRequirementText()).isEqualTo("★关键条款");
-            assertThat(issue.getSuggestionText()).startsWith("请补充:");
-            assertThat(issue.getSeverity()).isEqualTo("CRITICAL");
-            assertThat(issue.isEliminationRisk()).isTrue();
-        }
+        assertNotNull(result);
+        verify(clauseExtractorService, times(2)).extractClauses(any());
+        verify(clauseMatcherService).matchClauses(any(), any());
     }
 }
