@@ -48,7 +48,7 @@ public class EmbeddingService {
                 ClauseEmbedding emb = new ClauseEmbedding();
                 emb.setId((String) row[0]);
                 emb.setClauseId((String) row[1]);
-                // Similarity is row[2], could be used to filter
+                emb.setDocumentId(documentId);
                 similarClauses.add(emb);
             }
             return similarClauses;
