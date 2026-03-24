@@ -1,14 +1,9 @@
 package com.aiplatform.bidding.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
-@Data
-public class BiddingCheckRequest {
-    @NotBlank(message = "documentId is required")
-    private String documentId;
-
-    private String tenderRequirements;
-
-    private String tenderFileId;
-}
+public record BiddingCheckRequest(
+    MultipartFile tenderFile,
+    MultipartFile biddingFile,
+    CheckOptions checkOptions
+) {}
