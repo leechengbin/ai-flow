@@ -86,8 +86,9 @@ class BiddingCheckServiceTest {
                 100
             )
         );
+        BiddingCheckReportDto fakeReport = mock(BiddingCheckReportDto.class);
         when(reportGeneratorService.generateReport(any(), any(), any()))
-            .thenReturn(any(BiddingCheckReportDto.class));
+            .thenReturn(fakeReport);
 
         BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, new CheckOptions(true, true, true));
         BiddingCheckReportDto result = service.checkBidding(request);
@@ -130,8 +131,9 @@ class BiddingCheckServiceTest {
                 100
             )
         );
+        BiddingCheckReportDto fakeReport = mock(BiddingCheckReportDto.class);
         when(reportGeneratorService.generateReport(any(), any(), any()))
-            .thenReturn(any(BiddingCheckReportDto.class));
+            .thenReturn(fakeReport);
 
         BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, null);
         BiddingCheckReportDto result = service.checkBidding(request);
@@ -197,8 +199,9 @@ class BiddingCheckServiceTest {
             )
         );
 
+        BiddingCheckReportDto fakeReport = mock(BiddingCheckReportDto.class);
         when(reportGeneratorService.generateReport(any(), any(), any()))
-            .thenReturn(any(BiddingCheckReportDto.class));
+            .thenReturn(fakeReport);
 
         BiddingCheckRequest request = new BiddingCheckRequest(tenderFile, biddingFile, new CheckOptions(true, true, true));
         BiddingCheckReportDto result = service.checkBidding(request);

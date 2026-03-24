@@ -1,6 +1,6 @@
 package com.aiplatform.bidding.service;
 
-import com.aiplatform.bidding.dto.response.ParsedDocumentDto;
+import com.aiplatform.bidding.exception.DocumentParseException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,25 +35,25 @@ class DocumentParserServiceTest {
     @Test
     @DisplayName("PdfParserService should throw on null content")
     void pdfParser_shouldThrowOnNullContent() {
-        assertThrows(Exception.class, () -> pdfParserService.parse(null, "test.pdf"));
+        assertThrows(DocumentParseException.class, () -> pdfParserService.parse(null, "test.pdf"));
     }
 
     @Test
     @DisplayName("DocxParserService should throw on null content")
     void docxParser_shouldThrowOnNullContent() {
-        assertThrows(Exception.class, () -> docxParserService.parse(null, "test.docx"));
+        assertThrows(DocumentParseException.class, () -> docxParserService.parse(null, "test.docx"));
     }
 
     @Test
     @DisplayName("PdfParserService should throw on empty content")
     void pdfParser_shouldThrowOnEmptyContent() {
-        assertThrows(Exception.class, () -> pdfParserService.parse(new byte[0], "test.pdf"));
+        assertThrows(DocumentParseException.class, () -> pdfParserService.parse(new byte[0], "test.pdf"));
     }
 
     @Test
     @DisplayName("DocxParserService should throw on empty content")
     void docxParser_shouldThrowOnEmptyContent() {
-        assertThrows(Exception.class, () -> docxParserService.parse(new byte[0], "test.docx"));
+        assertThrows(DocumentParseException.class, () -> docxParserService.parse(new byte[0], "test.docx"));
     }
 
     @Test
