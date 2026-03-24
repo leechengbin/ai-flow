@@ -11,11 +11,14 @@ public class Clause {
     @Id private String id;
     @Column(nullable = false) private String documentId;
     private String clauseNumber;
+    private String title;
     @Column(columnDefinition = "text", nullable = false) private String content;
     @Builder.Default private Boolean isStarred = false;
     @Enumerated(EnumType.STRING) private ClauseType clauseType;
     @Enumerated(EnumType.STRING) private ResponseStatus responseStatus;
     private Integer pageNumber;
+    private Integer startPage;
+    private Integer endPage;
     @Column(updatable = false) private LocalDateTime createdAt;
 
     @PrePersist protected void onCreate() { createdAt = LocalDateTime.now(); }
