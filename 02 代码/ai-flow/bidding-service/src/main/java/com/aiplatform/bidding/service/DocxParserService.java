@@ -2,6 +2,7 @@ package com.aiplatform.bidding.service;
 
 import com.aiplatform.bidding.dto.response.ParsedDocumentDto;
 import com.aiplatform.bidding.dto.response.ParsedDocumentDto.*;
+import com.aiplatform.bidding.exception.DocumentParseException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.usermodel.XWPFParagraph;
@@ -27,6 +28,9 @@ public class DocxParserService implements DocumentParserService {
 
     @Override
     public ParsedDocumentDto parse(byte[] content, String fileName) {
+        if (content == null || content.length == 0) {
+            throw new DocumentParseException("Document content is null or empty: " + fileName, null);
+        }
         try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(content))) {
             List<PageContentDto> pages = new ArrayList<>();
             List<DateInfoDto> dates = new ArrayList<>();
@@ -47,7 +51,7 @@ public class DocxParserService implements DocumentParserService {
                             LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                             dates.add(new DateInfoDto(matcher.group(1), date, text.substring(0, Math.min(50, text.length()))));
                         } catch (Exception e) {
-                            // Skip invalid dates
+                            log.warn("Failed to parse date: {}", e.getMessage());
                         }
                     }
                 }
@@ -57,7 +61,7 @@ public class DocxParserService implements DocumentParserService {
                 UUID.randomUUID().toString(),
                 fileName,
                 "DOCX",
-                pageNumber - 1,
+                pages.size(),
                 fullTextBuilder.toString(),
                 pages,
                 List.of(), // Signatures - simplified for now
@@ -65,7 +69,7 @@ public class DocxParserService implements DocumentParserService {
             );
         } catch (IOException e) {
             log.error("Failed to parse DOCX: {}", fileName, e);
-            throw new RuntimeException("Failed to parse DOCX: " + fileName, e);
+            throw new DocumentParseException("Failed to parse DOCX: " + fileName, e);
         }
     }
 

@@ -1,5 +1,6 @@
 package com.aiplatform.bidding.domain.entity;
 
+import com.aiplatform.bidding.domain.enums.ResponseStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;

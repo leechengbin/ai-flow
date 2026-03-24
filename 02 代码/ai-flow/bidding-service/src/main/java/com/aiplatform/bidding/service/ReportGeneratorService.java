@@ -16,11 +16,17 @@ import java.util.UUID;
 @Slf4j
 public class ReportGeneratorService {
 
+    private static final double HIGH_RISK_THRESHOLD = 60;
+    private static final double MEDIUM_RISK_THRESHOLD = 80;
+    private static final double COVERAGE_WEIGHT = 0.7;
+    private static final double FORMAT_WEIGHT = 0.3;
+
     public BiddingCheckReportDto generateReport(
             List<MatchResultDto> matchResults,
             FormatCheckDto formatCheck,
             CheckOptions options) {
 
+        log.info("Generating report for {} match results", matchResults != null ? matchResults.size() : 0);
         SummaryDto summary = calculateSummary(matchResults, formatCheck);
         CoverageDto coverage = calculateCoverage(matchResults);
         List<IssueDto> issues = extractIssues(matchResults);
@@ -118,7 +124,7 @@ public class ReportGeneratorService {
                     "请补充该条款的完整内容",
                     result.tenderClause().rawText()
                 ));
-            } else if (!result.contentIssues().isEmpty()) {
+            } else if (result.contentIssues() != null && !result.contentIssues().isEmpty()) {
                 for (var issue : result.contentIssues()) {
                     issues.add(new IssueDto(
                         issue.issueId(),

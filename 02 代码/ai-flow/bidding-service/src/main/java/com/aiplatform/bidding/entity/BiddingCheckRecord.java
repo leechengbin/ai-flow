@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "bidding_check_records")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

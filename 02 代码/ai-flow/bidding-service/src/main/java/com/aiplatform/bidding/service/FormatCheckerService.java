@@ -1,5 +1,6 @@
 package com.aiplatform.bidding.service;
 
+import com.aiplatform.bidding.domain.enums.Severity;
 import com.aiplatform.bidding.dto.response.*;
 import com.aiplatform.bidding.dto.response.FormatCheckDto.*;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,14 @@ import java.util.List;
 @Service
 @Slf4j
 public class FormatCheckerService {
+
+    private static final int DEFAULT_SCORE = 100;
+    private static final int MIN_CONTENT_LENGTH = 100;
+    private static final int LOW_CONTENT_THRESHOLD = 50;
+    private static final int NO_PAGES_THRESHOLD = 30;
+    private static final int SIGNATURE_MISSING_THRESHOLD = 50;
+    private static final int SIGNATURE_PARTIAL_THRESHOLD = 70;
+    private static final int DATE_VALID_THRESHOLD = 80;
 
     public FormatCheckDto checkFormat(ParsedDocumentDto document) {
         if (document == null) {
@@ -34,23 +43,23 @@ public class FormatCheckerService {
 
     private CompletenessCheck checkCompleteness(ParsedDocumentDto document) {
         List<FormatIssue> issues = new ArrayList<>();
-        int score = 100;
+        int score = DEFAULT_SCORE;
 
         // Check if document has content
         if (document.fullText() == null || document.fullText().isBlank()) {
-            issues.add(new FormatIssue("EMPTY_CONTENT", "文档内容为空", "CRITICAL", "全文"));
+            issues.add(new FormatIssue("EMPTY_CONTENT", "文档内容为空", Severity.CRITICAL, "全文"));
             score = 0;
         } else {
             // Check minimum content length
-            if (document.fullText().length() < 100) {
-                issues.add(new FormatIssue("MINIMAL_CONTENT", "文档内容过少", "MEDIUM", "全文"));
-                score = Math.min(score, 50);
+            if (document.fullText().length() < MIN_CONTENT_LENGTH) {
+                issues.add(new FormatIssue("MINIMAL_CONTENT", "文档内容过少", Severity.MEDIUM, "全文"));
+                score = Math.min(score, LOW_CONTENT_THRESHOLD);
             }
 
             // Check page count
             if (document.totalPages() < 1) {
-                issues.add(new FormatIssue("NO_PAGES", "文档页数为0", "HIGH", "全文"));
-                score = Math.min(score, 30);
+                issues.add(new FormatIssue("NO_PAGES", "文档页数为0", Severity.HIGH, "全文"));
+                score = Math.min(score, NO_PAGES_THRESHOLD);
             }
         }
 
@@ -59,20 +68,20 @@ public class FormatCheckerService {
 
     private SignatureCheck checkSignatures(ParsedDocumentDto document) {
         List<SignatureIssue> issues = new ArrayList<>();
-        int score = 100;
+        int score = DEFAULT_SCORE;
 
         // Check if signatures list is empty
         if (document.signatures() == null || document.signatures().isEmpty()) {
             // This is a simplified check - in real implementation would check specific pages
             issues.add(new SignatureIssue("COMPANY_SEAL", 1, "MISSING", "未检测到公章"));
-            score = Math.min(score, 50);
+            score = Math.min(score, SIGNATURE_MISSING_THRESHOLD);
         } else {
             // Check for company seal
             boolean hasSeal = document.signatures().stream()
                 .anyMatch(s -> "COMPANY_SEAL".equals(s.type()));
             if (!hasSeal) {
                 issues.add(new SignatureIssue("COMPANY_SEAL", 1, "MISSING", "未检测到公章"));
-                score = Math.min(score, 70);
+                score = Math.min(score, SIGNATURE_PARTIAL_THRESHOLD);
             }
         }
 
@@ -81,11 +90,11 @@ public class FormatCheckerService {
 
     private DateCheck checkDates(ParsedDocumentDto document) {
         List<DateIssue> issues = new ArrayList<>();
-        int score = 100;
+        int score = DEFAULT_SCORE;
 
         if (document.dates() == null || document.dates().isEmpty()) {
             // No dates found - informational only
-            return new DateCheck(100, List.of());
+            return new DateCheck(DEFAULT_SCORE, List.of());
         }
 
         // Check if dates are parseable (already done in parser)
@@ -97,8 +106,8 @@ public class FormatCheckerService {
             issues.add(new DateIssue("UNPARSEABLE_DATE",
                 String.valueOf(invalidDates) + " dates could not be parsed",
                 "部分日期格式无法解析",
-                "MEDIUM"));
-            score = Math.min(score, 80);
+                Severity.MEDIUM));
+            score = Math.min(score, DATE_VALID_THRESHOLD);
         }
 
         return new DateCheck(score, List.copyOf(issues));

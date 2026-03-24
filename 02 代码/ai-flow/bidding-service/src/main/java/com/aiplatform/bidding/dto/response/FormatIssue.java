@@ -1,8 +1,10 @@
 package com.aiplatform.bidding.dto.response;
 
+import com.aiplatform.bidding.domain.enums.Severity;
+
 public record FormatIssue(
     String type,
     String description,
-    String severity,
+    Severity severity,
     String context
 ) {}

@@ -18,6 +18,7 @@ public class ClauseExtractorService {
     private static final Pattern CHINESE_CLAUSE_PATTERN = Pattern.compile("第([一二三四五六七八九十百零\\d]+)条");
     private static final Pattern DOT_CLAUSE_PATTERN = Pattern.compile("(\\d+\\.\\d+(?:\\.\\d+)?)");
     private static final Pattern CLAUSE_X_PATTERN = Pattern.compile("(?:条款|Clause)\\s*(\\d+)", Pattern.CASE_INSENSITIVE);
+    private static final int MAX_LINE_LENGTH_PER_PAGE = 500;
 
     public List<ClauseDto> extractClauses(String text) {
         if (text == null || text.isBlank()) {
@@ -37,7 +38,7 @@ public class ClauseExtractorService {
             }
 
             // Estimate page based on line count (simplified)
-            if (line.length() > 500) {
+            if (line.length() > MAX_LINE_LENGTH_PER_PAGE) {
                 currentPage++;
             }
         }
@@ -48,14 +49,23 @@ public class ClauseExtractorService {
     private ClauseDto extractClauseFromLine(String line, int currentPage) {
         String clauseNumber = null;
         String title = null;
+        int contentStart = 0;
 
         // Try Chinese clause pattern: 第X条
         Matcher chineseMatcher = CHINESE_CLAUSE_PATTERN.matcher(line);
         if (chineseMatcher.find()) {
             clauseNumber = chineseMatcher.group(1);
-            // Extract title if present (text after 条款 keyword)
             String afterClause = line.substring(chineseMatcher.end());
             title = extractTitle(afterClause);
+            contentStart = chineseMatcher.end();
+            if (title != null) {
+                contentStart += afterClause.length() - afterClause.trim().length();
+                String titleMarker = title.trim();
+                int titlePos = afterClause.indexOf(titleMarker);
+                if (titlePos >= 0) {
+                    contentStart = chineseMatcher.end() + titlePos + titleMarker.length();
+                }
+            }
         }
 
         // Try dot notation: X.Y.Z
@@ -63,7 +73,9 @@ public class ClauseExtractorService {
             Matcher dotMatcher = DOT_CLAUSE_PATTERN.matcher(line);
             if (dotMatcher.find()) {
                 clauseNumber = dotMatcher.group(1);
-                title = extractTitle(line.substring(dotMatcher.end()));
+                String afterDot = line.substring(dotMatcher.end());
+                title = extractTitle(afterDot);
+                contentStart = dotMatcher.end();
             }
         }
 
@@ -72,7 +84,9 @@ public class ClauseExtractorService {
             Matcher clauseXMatcher = CLAUSE_X_PATTERN.matcher(line);
             if (clauseXMatcher.find()) {
                 clauseNumber = clauseXMatcher.group(1);
-                title = extractTitle(line.substring(clauseXMatcher.end()));
+                String afterClauseX = line.substring(clauseXMatcher.end());
+                title = extractTitle(afterClauseX);
+                contentStart = clauseXMatcher.end();
             }
         }
 
@@ -81,7 +95,7 @@ public class ClauseExtractorService {
         }
 
         boolean isStarred = isStarred(line);
-        String content = line.trim();
+        String content = line.substring(contentStart).trim();
 
         return new ClauseDto(
             clauseNumber,

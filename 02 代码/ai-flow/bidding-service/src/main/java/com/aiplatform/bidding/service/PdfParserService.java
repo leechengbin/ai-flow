@@ -2,6 +2,7 @@ package com.aiplatform.bidding.service;
 
 import com.aiplatform.bidding.dto.response.ParsedDocumentDto;
 import com.aiplatform.bidding.dto.response.ParsedDocumentDto.*;
+import com.aiplatform.bidding.exception.DocumentParseException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -28,6 +29,9 @@ public class PdfParserService implements DocumentParserService {
 
     @Override
     public ParsedDocumentDto parse(byte[] content, String fileName) {
+        if (content == null || content.length == 0) {
+            throw new DocumentParseException("Document content is null or empty: " + fileName, null);
+        }
         try (PDDocument document = Loader.loadPDF(content)) {
             PDFTextStripper stripper = new PDFTextStripper();
             stripper.setSortByPosition(true);
@@ -52,7 +56,7 @@ public class PdfParserService implements DocumentParserService {
                         LocalDate date = LocalDate.parse(dateStr, DateTimeFormatter.ofPattern("yyyy-MM-dd"));
                         dates.add(new DateInfoDto(matcher.group(1), date, "page " + i));
                     } catch (Exception e) {
-                        // Skip invalid dates
+                        log.warn("Failed to parse date: {}", e.getMessage());
                     }
                 }
             }
@@ -69,7 +73,7 @@ public class PdfParserService implements DocumentParserService {
             );
         } catch (IOException e) {
             log.error("Failed to parse PDF: {}", fileName, e);
-            throw new RuntimeException("Failed to parse PDF: " + fileName, e);
+            throw new DocumentParseException("Failed to parse PDF: " + fileName, e);
         }
     }
 

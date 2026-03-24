@@ -2,6 +2,7 @@ package com.aiplatform.bidding.service;
 
 import com.aiplatform.bidding.dto.response.BiddingCheckReportDto;
 import com.aiplatform.bidding.entity.BiddingCheckRecord;
+import com.aiplatform.bidding.exception.ReportSerializationException;
 import com.aiplatform.bidding.repository.BiddingCheckRecordRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,7 +49,7 @@ public class CheckRecordService {
             return objectMapper.writeValueAsString(report);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize report to JSON", e);
-            throw new RuntimeException("Failed to serialize report", e);
+            throw new ReportSerializationException("Failed to serialize report to JSON", e);
         }
     }
 
@@ -57,7 +58,7 @@ public class CheckRecordService {
             return objectMapper.readValue(record.getReportJson(), BiddingCheckReportDto.class);
         } catch (JsonProcessingException e) {
             log.error("Failed to deserialize report from JSON", e);
-            throw new RuntimeException("Failed to deserialize report", e);
+            throw new ReportSerializationException("Failed to deserialize report from JSON", e);
         }
     }
 }
