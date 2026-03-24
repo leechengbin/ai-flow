@@ -1,6 +1,7 @@
 package com.aiplatform.bidding.controller;
 
 import com.aiplatform.bidding.dto.request.BiddingCheckRequest;
+import com.aiplatform.bidding.dto.request.CheckOptions;
 import com.aiplatform.bidding.dto.response.ApiResponse;
 import com.aiplatform.bidding.dto.response.BiddingCheckReportDto;
 import com.aiplatform.bidding.service.BiddingCheckService;
@@ -28,7 +29,7 @@ public class BiddingController {
         BiddingCheckRequest request = new BiddingCheckRequest(
             tenderFile,
             biddingFile,
-            new BiddingCheckRequest.CheckOptions(checkCoverage, checkFormat, checkStarred)
+            new CheckOptions(checkCoverage, checkFormat, checkStarred)
         );
 
         BiddingCheckReportDto report = biddingCheckService.checkBidding(request);
