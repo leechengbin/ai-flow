@@ -1,0 +1,149 @@
+:root {
+  --primary-color: #1a365d;
+  --secondary-color: #2c5282;
+  --accent-color: #3182ce;
+  --success-color: #38a169;
+  --warning-color: #d69e2e;
+  --danger-color: #e53e3e;
+  --bg-color: #f7fafc;
+  --card-bg: #ffffff;
+  --text-primary: #1a202c;
+  --text-secondary: #718096;
+  --border-color: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+}
+
+.app-header {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: white;
+  padding: 16px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.header-nav {
+  display: flex;
+  gap: 16px;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stat-card {
+  background: var(--card-bg);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.stat-card .stat-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.el-step__title {
+  font-size: 14px !important;
+}
+
+.el-upload-dragger {
+  border: 2px dashed var(--border-color) !important;
+  border-radius: 8px !important;
+  background-color: var(--bg-color) !important;
+  transition: all 0.3s ease !important;
+}
+
+.el-upload-dragger:hover {
+  border-color: var(--accent-color) !important;
+  background-color: #ebf8ff !important;
+}
+
+.upload-zone {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.upload-zone .el-icon {
+  font-size: 48px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.upload-zone p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 300px;
+}
+
+.issue-table {
+  margin-top: 16px;
+}
+
+.risk-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.risk-badge.low {
+  background-color: #c6f6d5;
+  color: #22543d;
+}
+
+.risk-badge.medium {
+  background-color: #fefcbf;
+  color: #744210;
+}
+
+.risk-badge.high {
+  background-color: #fed7d7;
+  color: #822727;
+}
+
+.risk-badge.critical {
+  background-color: #feb2b2;
+  color: #742a2a;
+}
